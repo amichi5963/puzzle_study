@@ -26,40 +26,60 @@ public class PlayerController : MonoBehaviour
     [SerializeField] PuyoController[] _puyoControllers = new PuyoController[2] { default!, default! };
     [SerializeField] BoardController boardController = default!;
 
-    Vector2Int _position;//軸ぷよの位置
+    //座標制御
+    Vector2Int _position =　new(2,12);//軸ぷよの位置
     RotState _rotate = RotState.Up;//角度は 0:上 1:右 2:下 3:左　でもつ(子ぷよの位置)
 
+    //移動制御
     AnimationController _animationController = new AnimationController();
     Vector2Int _last_position;
     RotState _last_rotate = RotState.Up;
 
     //落下制御
-    int _fallcount = 0;
+    int _fallCount = 0;
     int _groundFrame = GROUND_FRAMES;
 
-    LogicalInput logicalInput = new LogicalInput();
-    static readonly KeyCode[] key_code_tbl = new KeyCode[(int)LogicalInput.Key.MAX]
-    {
-        KeyCode.RightArrow, //Right
-        KeyCode.LeftArrow,  //Left
-        KeyCode.X,          //RotR
-        KeyCode.Z,          //RotL
-        KeyCode.UpArrow,    //QuickDrop
-        KeyCode.DownArrow,  //Down
-    };
+    LogicalInput _logicalInput = new LogicalInput();
 
     // Start is called before the first frame update
     void Start()
     {
-        _puyoControllers[0].SetPuyoType(PuyoType.Green);
-        _puyoControllers[1].SetPuyoType(PuyoType.Red);
+        //Spawnより後にStartが呼ばれてて、この行書くと動かなくなります。
+        //gameObject.SetActive(false);
+    }
 
-        _position = new Vector2Int(2, 12);
-        _rotate = RotState.Up;
+    public void SetLogicalInput(LogicalInput refalence)
+    {
+        _logicalInput = refalence;
+    }
+
+    public bool Spawn(PuyoType axis, PuyoType child)
+    {
+        //初期位置に出せるか確認
+        Vector2Int position = new(2, 12);   //初期位置
+        RotState rotate = RotState.Up;      //最初は上向き
+        if (!CanMove(position, rotate))
+        {
+            //Debug.Log("生成失敗");
+            return false;
+        }
+        //パラメータの初期化
+        _position = _last_position = position;
+        _rotate = _last_rotate = rotate;
+        _animationController.Set(1);
+        _fallCount = 0;
+        _groundFrame = GROUND_FRAMES;
+
+        //ぷよを出す
+        _puyoControllers[0].SetPuyoType(axis);
+        _puyoControllers[1].SetPuyoType(child);
 
         _puyoControllers[0].SetPos(new Vector3((float)_position.x, (float)_position.y, 0.0f));
         Vector2Int posChild = CalcChildPuyoPos(_position, _rotate);
         _puyoControllers[1].SetPos(new Vector3((float)posChild.x, (float)posChild.y, 0.0f));
+
+        gameObject.SetActive(true);
+        return true;
     }
 
     static readonly Vector2Int[] rotate_tbl = new Vector2Int[]
@@ -161,23 +181,6 @@ public class PlayerController : MonoBehaviour
         Settle();
     }
 
-    //入力を取り込む
-    void UpdateInput()
-    {
-        LogicalInput.Key inputDev = 0;//デバイス値
-
-        //キー入力取得
-        for (int i = 0; i < (int)LogicalInput.Key.MAX; i++)
-        {
-            if (Input.GetKey(key_code_tbl[i]))
-            {
-                inputDev |= (LogicalInput.Key)(1 << i);
-            }
-        }
-
-        logicalInput.Update(inputDev);
-    }
-
     private bool CanMove(Vector2Int pos, RotState rot)
     {
         if (!boardController.CanSettle(pos)) return false;
@@ -188,15 +191,15 @@ public class PlayerController : MonoBehaviour
 
     bool Fall(bool is_fast)
     {
-        _fallcount -= is_fast ? FALL_COUNT_FAST_SPD : FALL_COUNT_SPD;
+        _fallCount -= is_fast ? FALL_COUNT_FAST_SPD : FALL_COUNT_SPD;
 
         //ブロックを飛び越えたら、行けるのかチェック
-        while (_fallcount < 0)//ブロックが飛ぶ可能性がないこともない気がするので複数落下に対応
+        while (_fallCount < 0)//ブロックが飛ぶ可能性がないこともない気がするので複数落下に対応
         {
             if (!CanMove(_position + Vector2Int.down, _rotate))
             {
                 //堕ちられないなら
-                _fallcount = 0; //動きを止める
+                _fallCount = 0; //動きを止める
                 if (0 < --_groundFrame) return true;//時間があるなら、移動・回転可能
 
                 //時間切れになったら本当に固定
@@ -207,7 +210,7 @@ public class PlayerController : MonoBehaviour
             //堕ちられるなら下に進む
             _position += Vector2Int.down;
             _last_position += Vector2Int.down;
-            _fallcount += FALL_COUNT_UNIT;
+            _fallCount += FALL_COUNT_UNIT;
         }
 
         return true;
@@ -216,33 +219,33 @@ public class PlayerController : MonoBehaviour
     void Control()
     {
         //落とす
-        if (!Fall(logicalInput.IsRaw(LogicalInput.Key.Down))) return;// 接地したら終了
+        if (!Fall(_logicalInput.IsRaw(LogicalInput.Key.Down))) return;// 接地したら終了
 
         //アニメ中はキー入力を受け付けない
         if (_animationController.Update()) return;
 
         //平行移動のキー入力取得
-        if (logicalInput.IsRepeat(LogicalInput.Key.Right))
+        if (_logicalInput.IsRepeat(LogicalInput.Key.Right))
         {
             Translate(true);
         }
-        if (logicalInput.IsRepeat(LogicalInput.Key.Left))
+        if (_logicalInput.IsRepeat(LogicalInput.Key.Left))
         {
             Translate(false);
         }
 
         //回転のキー入力取得
-        if (logicalInput.IsTrigger(LogicalInput.Key.RotR))//右回転
+        if (_logicalInput.IsTrigger(LogicalInput.Key.RotR))//右回転
         {
             Rotate(true);
         }
-        if (logicalInput.IsTrigger(LogicalInput.Key.RotL))//左回転
+        if (_logicalInput.IsTrigger(LogicalInput.Key.RotL))//左回転
         {
             Rotate(false);
         }
 
         //クイックドロップのキー入力取得
-        if (logicalInput.IsRelease(LogicalInput.Key.QuickDrop))
+        if (_logicalInput.IsRelease(LogicalInput.Key.QuickDrop))
         {
             QuickDrop();
         }
@@ -250,14 +253,11 @@ public class PlayerController : MonoBehaviour
 
     void FixedUpdate()
     {
-        //入力を取り込む
-        UpdateInput();
-
         //操作を受けて動かす
         Control();
 
         //表示
-        Vector3 dy = Vector3.up * (float)_fallcount / (float)FALL_COUNT_UNIT;
+        Vector3 dy = Vector3.up * (float)_fallCount / (float)FALL_COUNT_UNIT;
         float anim_rate = _animationController.GetNormalized();
         _puyoControllers[0].SetPos(dy + Interpolate(_position, RotState.Invalid, _last_position, RotState.Invalid, anim_rate));
         _puyoControllers[1].SetPos(dy + Interpolate(_position, _rotate, _last_position, _last_rotate, anim_rate));
