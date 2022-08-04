@@ -56,14 +56,14 @@
     <Analyzer Include="C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\Extensions\Microsoft\Visual Studio Tools for Unity\Analyzers\Microsoft.Unity.Analyzers.dll" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Assets\Scripts\PuyoPair.cs" />
     <Compile Include="Assets\Scripts\PlayerController.cs" />
     <Compile Include="Assets\Scripts\BoardController.cs" />
     <Compile Include="Assets\Scripts\AnimationController.cs" />
     <Compile Include="Assets\Scripts\LogicalInput.cs" />
+    <Compile Include="Assets\Scripts\PlayDirector.cs" />
     <Compile Include="Assets\Scripts\NextQueue.cs" />
     <Compile Include="Assets\Scripts\PuyoController.cs" />
-    <Compile Include="Assets\Scripts\PuyoPair.cs" />
-    <Compile Include="Assets\Scripts\PlayDirector.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="UnityEngine">
