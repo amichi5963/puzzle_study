@@ -10,6 +10,7 @@ interface IState
         Control = 0,
         GameOver = 1,
         Falling = 2,
+        Erasing = 3,
 
         MAX,
 
@@ -30,12 +31,13 @@ public class PlayDirector : MonoBehaviour
     [SerializeField] PuyoPair[] nextPuyoPairs = {default!,default!};
 
     //èÛë‘ä«óù
-    IState.E_State _current_state = IState.E_State.Control;
+    IState.E_State _current_state = IState.E_State.Falling;
     static readonly IState[] states = new IState[(int)IState.E_State.MAX]
     {
         new ControlState(),
         new GameOverState(),
         new FallingState(),
+        new ErasingState(),
     };
 
     // Start is called before the first frame update
@@ -108,10 +110,22 @@ public class PlayDirector : MonoBehaviour
     {
         public IState.E_State Initialize(PlayDirector parent) 
         {
-            return parent._boardController.CheckFall() ? IState.E_State.Unchanged : IState.E_State.Control;
+            return parent._boardController.CheckFall() ? IState.E_State.Unchanged : IState.E_State.Erasing;
         }
         public IState.E_State Update(PlayDirector parent) {
-            return parent._boardController.Fall() ? IState.E_State.Unchanged : IState.E_State.Control;
+            return parent._boardController.Fall() ? IState.E_State.Unchanged : IState.E_State.Erasing;
+        }
+    }
+
+    class ErasingState : IState
+    {
+        public IState.E_State Initialize(PlayDirector parent)
+        {
+            return parent._boardController.CheckErase() ? IState.E_State.Unchanged : IState.E_State.Control;
+        }
+        public IState.E_State Update(PlayDirector parent)
+        {
+            return parent._boardController.Erase() ? IState.E_State.Unchanged : IState.E_State.Falling;
         }
     }
 
