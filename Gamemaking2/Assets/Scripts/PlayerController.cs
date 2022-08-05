@@ -39,6 +39,9 @@ public class PlayerController : MonoBehaviour
     int _fallCount = 0;
     int _groundFrame = GROUND_FRAMES;
 
+    //得点
+    uint _additiveScore = 0;
+
     LogicalInput _logicalInput = new LogicalInput();
 
     // Start is called before the first frame update
@@ -180,15 +183,6 @@ public class PlayerController : MonoBehaviour
 
         Settle();
     }
-
-    private bool CanMove(Vector2Int pos, RotState rot)
-    {
-        if (!boardController.CanSettle(pos)) return false;
-        if (!boardController.CanSettle(CalcChildPuyoPos(pos, rot))) return false;
-
-        return true;
-    }
-
     bool Fall(bool is_fast)
     {
         _fallCount -= is_fast ? FALL_COUNT_FAST_SPD : FALL_COUNT_SPD;
@@ -212,6 +206,16 @@ public class PlayerController : MonoBehaviour
             _last_position += Vector2Int.down;
             _fallCount += FALL_COUNT_UNIT;
         }
+
+        if (is_fast) _additiveScore++;//下に入れて、落ちれるときはボーナス追加
+
+        return true;
+    }
+
+    private bool CanMove(Vector2Int pos, RotState rot)
+    {
+        if (!boardController.CanSettle(pos)) return false;
+        if (!boardController.CanSettle(CalcChildPuyoPos(pos, rot))) return false;
 
         return true;
     }
@@ -285,5 +289,14 @@ public class PlayerController : MonoBehaviour
         theta = theta0 + rate * theta;
 
         return p + new Vector3(Mathf.Sin(theta), Mathf.Cos(theta), 0.0f);
+    }
+
+    //得点の受け渡し
+    public uint popScore()
+    {
+        uint score = _additiveScore;
+        _additiveScore = 0;
+
+        return score;
     }
 }

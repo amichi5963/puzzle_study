@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -11,6 +12,7 @@ interface IState
         GameOver = 1,
         Falling = 2,
         Erasing = 3,
+        Waiting = 4,
 
         MAX,
 
@@ -30,6 +32,11 @@ public class PlayDirector : MonoBehaviour
     NextQueue _nextQueue = new();
     [SerializeField] PuyoPair[] nextPuyoPairs = {default!,default!};
 
+    //得点
+    [SerializeField] TextMeshProUGUI textScore = default!;
+    uint _score = 0;
+    int _chainCount = -1;//連鎖数(得点計算にひつよう）-1は初期化用Magic number    
+
     //状態管理
     IState.E_State _current_state = IState.E_State.Falling;
     static readonly IState[] states = new IState[(int)IState.E_State.MAX]
@@ -38,7 +45,10 @@ public class PlayDirector : MonoBehaviour
         new GameOverState(),
         new FallingState(),
         new ErasingState(),
+        new WaitingState(),
     };
+
+    bool _canSpawn = false;
 
     // Start is called before the first frame update
     void Start()
@@ -49,8 +59,11 @@ public class PlayDirector : MonoBehaviour
         _playerController.SetLogicalInput(_logicalInput);
 
         _nextQueue.Initialize();
+        UpdateNextView();
         //状態の初期化
         InitializeState();
+
+        SetScore(0);
     }
 
     void UpdateNextView()
@@ -121,7 +134,12 @@ public class PlayDirector : MonoBehaviour
     {
         public IState.E_State Initialize(PlayDirector parent)
         {
-            return parent._boardController.CheckErase() ? IState.E_State.Unchanged : IState.E_State.Control;
+            if (parent._boardController.CheckErase(parent._chainCount++))
+            { 
+                return IState.E_State.Unchanged; //消すアニメーションに突入
+            } 
+            parent._chainCount = 0;//れんさが途切れた
+            return parent._canSpawn ? IState.E_State.Control : IState.E_State.Waiting;//消すものはない
         }
         public IState.E_State Update(PlayDirector parent)
         {
@@ -138,6 +156,17 @@ public class PlayDirector : MonoBehaviour
         }
         public IState.E_State Update(PlayDirector parent) { return IState.E_State.Unchanged; }
     }
+
+    class WaitingState : IState
+    {
+        public IState.E_State Initialize(PlayDirector parent) { return IState.E_State.Unchanged; }
+
+        public IState.E_State Update(PlayDirector parent)
+        {
+            return parent._canSpawn ? IState.E_State.Control : IState.E_State.Unchanged;
+        }
+    }
+
 
     void InitializeState()
     {
@@ -172,7 +201,30 @@ public class PlayDirector : MonoBehaviour
         UpdateInput();
 
         UpdateState();
+
+        AddScore(_playerController.popScore());
+        AddScore(_boardController.popScore());
     }
 
     bool Spawn(Vector2Int next) => _playerController.Spawn((PuyoType)next.x, (PuyoType)next.y);
+
+    void SetScore(uint score)
+    {
+        _score = score;
+        textScore.text=_score.ToString();
+    }
+
+    void AddScore(uint score)
+    {
+        if (0 < score) SetScore(_score + score);
+    }
+
+    public void EnableSpawn(bool enable)
+    {
+        _canSpawn = enable;
+    }
+    public bool IsGameOver()
+    {
+        return _current_state == IState.E_State.GameOver;
+    }
 }
