@@ -9,6 +9,7 @@ interface IState
     {
         Control = 0,
         GameOver = 1,
+        Falling = 2,
 
         MAX,
 
@@ -18,12 +19,13 @@ interface IState
     E_State Initialize(PlayDirector parent);
     E_State Update(PlayDirector parent);
 }
-
+[RequireComponent(typeof(BoardController))]
 public class PlayDirector : MonoBehaviour
 {
     [SerializeField] GameObject player = default!;
     PlayerController _playerController = null;
     LogicalInput _logicalInput = new();
+    BoardController _boardController = default!;
     NextQueue _nextQueue = new();
     [SerializeField] PuyoPair[] nextPuyoPairs = {default!,default!};
 
@@ -33,12 +35,14 @@ public class PlayDirector : MonoBehaviour
     {
         new ControlState(),
         new GameOverState(),
+        new FallingState(),
     };
 
     // Start is called before the first frame update
     void Start()
     {
         _playerController = player.GetComponent<PlayerController>();
+        _boardController = GetComponent<BoardController>();
         _logicalInput.Claer();
         _playerController.SetLogicalInput(_logicalInput);
 
@@ -96,7 +100,18 @@ public class PlayDirector : MonoBehaviour
         }
         public IState.E_State Update(PlayDirector parent)
         {
-            return parent.player.activeSelf ? IState.E_State.Unchanged : IState.E_State.Control;
+            return parent.player.activeSelf ? IState.E_State.Unchanged : IState.E_State.Falling;
+        }
+    }
+
+    class FallingState : IState
+    {
+        public IState.E_State Initialize(PlayDirector parent) 
+        {
+            return parent._boardController.CheckFall() ? IState.E_State.Unchanged : IState.E_State.Control;
+        }
+        public IState.E_State Update(PlayDirector parent) {
+            return parent._boardController.Fall() ? IState.E_State.Unchanged : IState.E_State.Control;
         }
     }
 
